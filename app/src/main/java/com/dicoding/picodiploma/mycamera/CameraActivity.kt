@@ -1,9 +1,12 @@
 package com.dicoding.picodiploma.mycamera
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.mlkit.vision.MlKitAnalyzer
@@ -19,6 +22,8 @@ import com.google.mlkit.vision.barcode.common.Barcode
 class CameraActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCameraBinding
     private lateinit var barcodeScanner: BarcodeScanner
+
+    private var firstCall = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,14 +66,38 @@ class CameraActivity : AppCompatActivity() {
     }
 
     private fun showResult(result: MlKitAnalyzer.Result?) {
-        val barcodeResult = result?.getValue(barcodeScanner)
-        if ((barcodeResult != null) && (barcodeResult.size != 0) && (barcodeResult.first() != null)) {
-            val barcode = barcodeResult[0]
-            val alertDialog = AlertDialog.Builder(this)
-                .setMessage(barcode.rawValue)
-                .setCancelable(false)
-                .create()
-            alertDialog.show()
+        if (firstCall) {
+            val barcodeResult = result?.getValue(barcodeScanner)
+            if ((barcodeResult != null) && (barcodeResult.size != 0) && (barcodeResult.first() != null)) {
+                firstCall = false
+                val barcode = barcodeResult[0]
+                val alertDialog = AlertDialog.Builder(this)
+                    .setMessage(barcode.rawValue)
+                    .setPositiveButton(
+                        "Buka"
+                    ) { _, _ ->
+                        firstCall = true
+                        when (barcode.valueType) {
+                            Barcode.TYPE_URL -> {
+                                val openBrowserIntent = Intent(Intent.ACTION_VIEW)
+                                openBrowserIntent.data = Uri.parse(barcode.url?.url)
+                                startActivity(openBrowserIntent)
+                            }
+
+                            else -> {
+                                Toast.makeText(this, "Unsupported data type", Toast.LENGTH_SHORT)
+                                    .show()
+                                startCamera()
+                            }
+                        }
+                    }
+                    .setNegativeButton("Scan lagi") { _, _ ->
+                        firstCall = true
+                    }
+                    .setCancelable(false)
+                    .create()
+                alertDialog.show()
+            }
         }
     }
 
